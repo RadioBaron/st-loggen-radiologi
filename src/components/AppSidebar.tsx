@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Logo } from "@/components/Logo";
+import { useActiveSpecialty } from "@/lib/specialty";
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +35,7 @@ const items = [
 ];
 
 export function AppSidebar() {
+  const { specialty } = useActiveSpecialty();
   const currentPath = useRouterState({
     select: (router) => router.location.pathname,
   });
@@ -47,7 +49,7 @@ export function AppSidebar() {
           <Logo className="h-9 w-9 shrink-0" />
           <div className="flex flex-col leading-tight">
             <span className="font-display text-base font-semibold">STigen</span>
-            <span className="text-xs text-muted-foreground">Radiologi</span>
+            <span className="text-xs text-muted-foreground">{specialty?.name ?? "ST"}</span>
           </div>
         </div>
       </SidebarHeader>
