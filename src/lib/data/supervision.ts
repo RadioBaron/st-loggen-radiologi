@@ -13,6 +13,17 @@ export type SupervisionSection = {
   questions: SupervisionQuestion[];
 };
 
+export type SupervisionSession = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  supervisor: string;
+  location?: string;
+  /** key: `${sectionId}:${questionId}` */
+  answers: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const SUPERVISION_TEMPLATE: SupervisionSection[] = [
   {
     id: "tillbakablick",

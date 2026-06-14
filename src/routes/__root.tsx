@@ -7,14 +7,16 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNav } from "@/components/MobileNav";
+import { SpecialtyOnboarding } from "@/components/SpecialtyOnboarding";
 import { Toaster } from "@/components/ui/sonner";
+import { useActiveSpecialty } from "@/lib/specialty";
 
 function NotFoundComponent() {
   return (
@@ -48,9 +50,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Något gick fel
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Något gick fel</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Försök ladda om sidan eller gå tillbaka till start.
         </p>
@@ -82,7 +82,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "STigen – Radiologi" },
-      { name: "description", content: "Lokal anteckningsbok för ST-läkare inom Radiologi: delmål, långtidsschema och handledarsamtal." },
+      {
+        name: "description",
+        content:
+          "Lokal anteckningsbok för ST-läkare inom Radiologi: delmål, långtidsschema och handledarsamtal.",
+      },
       { name: "author", content: "STigen" },
       { name: "theme-color", content: "#1f5f6b" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -123,13 +127,26 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { needsOnboarding, setSpecialtyId, specialty } = useActiveSpecialty();
+  const [mounted, setMounted] = useState(false);
 
   // Registrera service worker för PWA/offline (endast i webbläsaren).
   useEffect(() => {
+    setMounted(true);
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
+
+  // Förstagångsval av specialitet (visas inte förrän klienten hydrerat).
+  if (mounted && needsOnboarding) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SpecialtyOnboarding onChosen={setSpecialtyId} />
+        <Toaster richColors position="top-right" />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -144,7 +161,7 @@ function RootComponent() {
                 <SidebarTrigger />
               </div>
               <span className="font-display text-sm font-medium text-muted-foreground">
-                STigen · Radiologi
+                STigen · {specialty?.name ?? "ST"}
               </span>
             </header>
             <main className="flex-1 pb-20 md:pb-0">

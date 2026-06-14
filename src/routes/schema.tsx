@@ -4,6 +4,19 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
+import { useActiveSpecialty } from "@/lib/specialty";
+import { DEFAULT_PROFILE, type Profile } from "@/lib/data/profile";
+import {
+  countsTowardService,
+  departmentOptions,
+  monthsBetween,
+  entryStart,
+  entryEnd,
+  scheduleDisplayName as displayName,
+  countedMonths,
+  type ScheduleEntry,
+} from "@/lib/data/schedule";
+import { genId, formatDate, nf } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,42 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type ScheduleEntry = {
-  id: string;
-  department: string;
-  customName?: string; // egen text när department === "Övrigt"
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-  months: number; // beräknas från datumen
-  notes?: string;
-  // Bakåtkompatibelt (äldre poster sparade per månad):
-  startMonth?: string;
-};
-
-const GOAL_MONTHS = 60;
-
-const DEFAULT_DEPARTMENTS = [
-  "Thorax",
-  "Abdomen",
-  "Neuro",
-  "Muskuloskeletal",
-  "Mammografi",
-  "Akutradiologi",
-  "Intervention",
-  "Barnradiologi",
-  "Ultraljud",
-  "Nuklearmedicin",
-  "Forskning",
-  "Sidotjänstgöring",
-  "Föräldraledig",
-  "Övrigt",
-];
-
-// Kategorier som inte räknas som ST-tjänstgöring mot måltiden.
-export const NON_COUNTING_CATEGORIES = ["Föräldraledig"];
-export function countsTowardService(e: ScheduleEntry) {
-  return !NON_COUNTING_CATEGORIES.includes(e.department);
-}
+export type { ScheduleEntry } from "@/lib/data/schedule";
+export { countsTowardService, NON_COUNTING_CATEGORIES } from "@/lib/data/schedule";
 
 export const Route = createFileRoute("/schema")({
   head: () => ({
@@ -64,42 +43,6 @@ export const Route = createFileRoute("/schema")({
   component: SchedulePage,
 });
 
-function genId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-// Antal månader mellan två datum (1 decimal).
-function monthsBetween(start: string, end: string) {
-  const s = new Date(start);
-  const e = new Date(end);
-  if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 0;
-  const days = (e.getTime() - s.getTime()) / 86400000;
-  return Math.round((days / 30.4375) * 10) / 10;
-}
-
-function entryStart(e: ScheduleEntry) {
-  return e.startDate || (e.startMonth ? `${e.startMonth}-01` : "");
-}
-function entryEnd(e: ScheduleEntry) {
-  return e.endDate || "";
-}
-
-function displayName(e: ScheduleEntry) {
-  if (e.department === "Övrigt") return e.customName?.trim() || "Övrigt";
-  return e.department;
-}
-
-function formatDate(d: string) {
-  if (!d) return "";
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return d;
-  return date.toLocaleDateString("sv-SE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 type Draft = {
   department: string;
   customName: string;
@@ -108,9 +51,9 @@ type Draft = {
   notes: string;
 };
 
-function emptyDraft(): Draft {
+function emptyDraft(firstDepartment: string): Draft {
   return {
-    department: DEFAULT_DEPARTMENTS[0],
+    department: firstDepartment,
     customName: "",
     startDate: "",
     endDate: "",
@@ -119,25 +62,24 @@ function emptyDraft(): Draft {
 }
 
 function SchedulePage() {
-  const [entries, setEntries] = useLocalState<ScheduleEntry[]>(
-    STORAGE_KEYS.schedule,
-    [],
-  );
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const { specialty } = useActiveSpecialty();
+  const [profile] = useLocalState<Profile>(STORAGE_KEYS.profile, DEFAULT_PROFILE);
+  const [entries, setEntries] = useLocalState<ScheduleEntry[]>(STORAGE_KEYS.schedule, []);
 
+  const departments = useMemo(() => departmentOptions(specialty?.departments), [specialty]);
+  const [draft, setDraft] = useState<Draft>(() => emptyDraft(departments[0]));
+
+  const goalMonths = profile.goalMonths || specialty?.goalMonths || 60;
   const today = new Date().toISOString().slice(0, 10);
   const draftMonths = monthsBetween(draft.startDate, draft.endDate);
 
   const sorted = useMemo(
-    () =>
-      [...entries].sort((a, b) => entryStart(a).localeCompare(entryStart(b))),
+    () => [...entries].sort((a, b) => entryStart(a).localeCompare(entryStart(b))),
     [entries],
   );
 
-  const totalMonths = entries
-    .filter(countsTowardService)
-    .reduce((s, e) => s + (e.months || 0), 0);
-  const pct = Math.min(100, Math.round((totalMonths / GOAL_MONTHS) * 100));
+  const totalMonths = countedMonths(entries);
+  const pct = goalMonths ? Math.min(100, Math.round((totalMonths / goalMonths) * 100)) : 0;
 
   const byDept = useMemo(() => {
     const map = new Map<string, number>();
@@ -175,7 +117,7 @@ function SchedulePage() {
       },
     ]);
     toast.success("Placering tillagd");
-    setDraft(emptyDraft());
+    setDraft(emptyDraft(departments[0]));
   };
 
   const remove = (id: string) => {
@@ -185,16 +127,13 @@ function SchedulePage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 md:px-6 md:py-10">
       <div className="mb-8">
-        <p className="text-sm font-medium uppercase tracking-wide text-primary">
-          Tjänstgöring
-        </p>
+        <p className="text-sm font-medium uppercase tracking-wide text-primary">Tjänstgöring</p>
         <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight md:text-4xl">
           Långtidsschema
         </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Lägg in dina placeringar med start- och slutdatum. Målet är{" "}
-          {GOAL_MONTHS} månaders tjänstgöring (föräldra-/tjänstledighet räknas
-          inte med).
+          Lägg in dina placeringar med start- och slutdatum. Målet är {goalMonths} månaders
+          tjänstgöring (föräldra-/tjänstledighet räknas inte med).
         </p>
       </div>
 
@@ -202,7 +141,7 @@ function SchedulePage() {
         <CardContent className="grid grid-cols-1 gap-6 p-6 md:grid-cols-[1fr_2fr]">
           <div>
             <p className="font-display text-3xl font-semibold">
-              {totalMonths.toLocaleString("sv-SE")} / {GOAL_MONTHS}
+              {nf(totalMonths)} / {goalMonths}
             </p>
             <p className="text-sm text-muted-foreground">månaders tjänstgöring</p>
             <Progress value={pct} className="mt-3 h-2" />
@@ -211,20 +150,13 @@ function SchedulePage() {
           <div>
             <p className="mb-2 text-sm font-medium">Fördelning per placering</p>
             {byDept.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Inga placeringar inlagda ännu.
-              </p>
+              <p className="text-sm text-muted-foreground">Inga placeringar inlagda ännu.</p>
             ) : (
               <ul className="space-y-1.5">
                 {byDept.map(([dept, months]) => (
-                  <li
-                    key={dept}
-                    className="flex items-center justify-between text-sm"
-                  >
+                  <li key={dept} className="flex items-center justify-between text-sm">
                     <span>{dept}</span>
-                    <span className="text-muted-foreground">
-                      {months.toLocaleString("sv-SE")} mån
-                    </span>
+                    <span className="text-muted-foreground">{nf(months)} mån</span>
                   </li>
                 ))}
               </ul>
@@ -235,9 +167,7 @@ function SchedulePage() {
 
       <Card className="mb-8 border-border/60">
         <CardHeader>
-          <CardTitle className="font-display text-xl">
-            Lägg till placering
-          </CardTitle>
+          <CardTitle className="font-display text-xl">Lägg till placering</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -251,7 +181,7 @@ function SchedulePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_DEPARTMENTS.map((d) => (
+                  {departments.map((d) => (
                     <SelectItem key={d} value={d}>
                       {d}
                     </SelectItem>
@@ -266,9 +196,7 @@ function SchedulePage() {
                 <Input
                   id="custom"
                   value={draft.customName}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, customName: e.target.value }))
-                  }
+                  onChange={(e) => setDraft((d) => ({ ...d, customName: e.target.value }))}
                   className="mt-1"
                   placeholder="Skriv in placering/randning"
                 />
@@ -281,9 +209,7 @@ function SchedulePage() {
                 id="startDate"
                 type="date"
                 value={draft.startDate}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, startDate: e.target.value }))
-                }
+                onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))}
                 className="mt-1"
               />
             </div>
@@ -293,9 +219,7 @@ function SchedulePage() {
                 id="endDate"
                 type="date"
                 value={draft.endDate}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, endDate: e.target.value }))
-                }
+                onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))}
                 className="mt-1"
               />
             </div>
@@ -305,9 +229,7 @@ function SchedulePage() {
               <Input
                 id="notes"
                 value={draft.notes}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, notes: e.target.value }))
-                }
+                onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                 className="mt-1"
                 placeholder="t.ex. handledare, fokusområde"
               />
@@ -317,7 +239,7 @@ function SchedulePage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
               {draftMonths > 0
-                ? `Längd: ${draftMonths.toLocaleString("sv-SE")} månader`
+                ? `Längd: ${nf(draftMonths)} månader`
                 : "Ange datum för att beräkna längd"}
             </p>
             <Button onClick={add}>
@@ -357,9 +279,7 @@ function SchedulePage() {
                     <div className="group flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-primary/30">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                          <p className="font-medium text-foreground">
-                            {displayName(e)}
-                          </p>
+                          <p className="font-medium text-foreground">{displayName(e)}</p>
                           {isCurrent && (
                             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                               Pågår nu
@@ -378,12 +298,9 @@ function SchedulePage() {
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {formatDate(start)}
-                          {end ? ` – ${formatDate(end)}` : ""} ·{" "}
-                          {(e.months || 0).toLocaleString("sv-SE")} mån
+                          {end ? ` – ${formatDate(end)}` : ""} · {nf(e.months || 0)} mån
                         </p>
-                        {e.notes && (
-                          <p className="mt-1 text-sm text-muted-foreground">{e.notes}</p>
-                        )}
+                        {e.notes && <p className="mt-1 text-sm text-muted-foreground">{e.notes}</p>}
                       </div>
                       <Button
                         variant="ghost"

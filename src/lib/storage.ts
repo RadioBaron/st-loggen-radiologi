@@ -64,6 +64,7 @@ export function useLocalState<T>(key: string, initial: T) {
 // ---- Export / Import ---------------------------------------------------
 
 export const STORAGE_KEYS = {
+  specialty: "specialty",
   milestones: "milestones",
   schedule: "schedule",
   supervision: "supervision",

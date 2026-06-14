@@ -10,18 +10,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  exportAllData,
-  importAllData,
-  getBackupJson,
-  importFromJson,
-} from "@/lib/storage";
-import {
-  readDriveConfig,
-  writeDriveConfig,
-  saveToDrive,
-  loadFromDrive,
-} from "@/lib/google-drive";
+import { exportAllData, importAllData, getBackupJson, importFromJson } from "@/lib/storage";
+import { readDriveConfig, writeDriveConfig, saveToDrive, loadFromDrive } from "@/lib/google-drive";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +21,10 @@ export const Route = createFileRoute("/installningar")({
   head: () => ({
     meta: [
       { title: "Inställningar – STigen Radiologi" },
-      { name: "description", content: "Exportera, importera och säkerhetskopiera dina data till Google Drive." },
+      {
+        name: "description",
+        content: "Exportera, importera och säkerhetskopiera dina data till Google Drive.",
+      },
     ],
   }),
   component: SettingsPage,
@@ -59,8 +52,8 @@ function SettingsPage() {
           Inställningar
         </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          All din data lagras lokalt i den här webbläsaren. Ta backup
-          regelbundet – till en fil eller direkt till din Google Drive.
+          All din data lagras lokalt i den här webbläsaren. Ta backup regelbundet – till en fil
+          eller direkt till din Google Drive.
         </p>
       </div>
 
@@ -77,8 +70,7 @@ function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Skapar en JSON-fil med alla dina delmål, schema, kurser och
-              handledarsamtal.
+              Skapar en JSON-fil med alla dina delmål, schema, kurser och handledarsamtal.
             </p>
             <Button onClick={exportAllData}>
               <Download className="mr-1 h-4 w-4" /> Ladda ner backup
@@ -124,14 +116,12 @@ function SimpleDriveCard() {
     <Card className="border-border/60">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-display text-lg">
-          <HardDriveUpload className="h-5 w-5 text-primary" /> Spara till Google
-          Drive (manuellt)
+          <HardDriveUpload className="h-5 w-5 text-primary" /> Spara till Google Drive (manuellt)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Ladda ner backup-filen och släpp den sedan i Google Drive. Ingen
-          inloggning krävs.
+          Ladda ner backup-filen och släpp den sedan i Google Drive. Ingen inloggning krävs.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -199,15 +189,13 @@ function GoogleDriveCard() {
     <Card className="border-primary/30 bg-primary/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 font-display text-lg">
-          <HardDriveDownload className="h-5 w-5 text-primary" /> Synka med Google
-          Drive
+          <HardDriveDownload className="h-5 w-5 text-primary" /> Synka med Google Drive
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Spara och hämta din backup direkt i Google Drive. Appen kommer bara åt
-          filer den själv skapat. Engångsuppsättning: skapa ett gratis OAuth
-          Client-ID och klistra in det nedan.
+          Spara och hämta din backup direkt i Google Drive. Appen kommer bara åt filer den själv
+          skapat. Engångsuppsättning: skapa ett gratis OAuth Client-ID och klistra in det nedan.
         </p>
 
         <div>
@@ -235,11 +223,7 @@ function GoogleDriveCard() {
             )}
             Spara till Drive
           </Button>
-          <Button
-            variant="outline"
-            onClick={doLoad}
-            disabled={!connected || busy !== null}
-          >
+          <Button variant="outline" onClick={doLoad} disabled={!connected || busy !== null}>
             {busy === "load" ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" />
             ) : (
@@ -270,12 +254,10 @@ function GoogleDriveCard() {
               Aktivera <strong>Google Drive API</strong> under "Enabled APIs".
             </li>
             <li>
-              Skapa <strong>OAuth client ID</strong> av typen{" "}
-              <strong>Web application</strong>.
+              Skapa <strong>OAuth client ID</strong> av typen <strong>Web application</strong>.
             </li>
             <li>
-              Lägg till din webbadress under{" "}
-              <em>Authorized JavaScript origins</em> (t.ex.{" "}
+              Lägg till din webbadress under <em>Authorized JavaScript origins</em> (t.ex.{" "}
               <code>http://localhost:8080</code> och din publika adress).
             </li>
             <li>Kopiera Client-ID:t och klistra in det ovan.</li>

@@ -4,22 +4,15 @@ import { Plus, Trash2, Save, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
-import { SUPERVISION_TEMPLATE } from "@/lib/data/supervision";
+import { SUPERVISION_TEMPLATE, type SupervisionSession } from "@/lib/data/supervision";
+import { genId } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export type SupervisionSession = {
-  id: string;
-  date: string; // YYYY-MM-DD
-  supervisor: string;
-  location?: string;
-  answers: Record<string, string>; // key: `${sectionId}:${questionId}`
-  createdAt: string;
-  updatedAt: string;
-};
+export type { SupervisionSession } from "@/lib/data/supervision";
 
 export const Route = createFileRoute("/handledarsamtal")({
   head: () => ({
@@ -31,15 +24,8 @@ export const Route = createFileRoute("/handledarsamtal")({
   component: SupervisionPage,
 });
 
-function genId() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 function SupervisionPage() {
-  const [sessions, setSessions] = useLocalState<SupervisionSession[]>(
-    STORAGE_KEYS.supervision,
-    [],
-  );
+  const [sessions, setSessions] = useLocalState<SupervisionSession[]>(STORAGE_KEYS.supervision, []);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sorted = useMemo(
@@ -66,11 +52,7 @@ function SupervisionPage() {
 
   const update = (id: string, patch: Partial<SupervisionSession>) => {
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, ...patch, updatedAt: new Date().toISOString() }
-          : s,
-      ),
+      prev.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: new Date().toISOString() } : s)),
     );
   };
 
@@ -99,15 +81,11 @@ function SupervisionPage() {
     <div className="mx-auto w-full max-w-5xl px-6 py-10">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-primary">
-            Reflektion
-          </p>
-          <h1 className="mt-1 text-4xl font-semibold tracking-tight">
-            Handledarsamtal
-          </h1>
+          <p className="text-sm font-medium uppercase tracking-wide text-primary">Reflektion</p>
+          <h1 className="mt-1 text-4xl font-semibold tracking-tight">Handledarsamtal</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Strukturerade samtal med din handledare. Mallen följer ST:s
-            återkommande utvecklingssamtal.
+            Strukturerade samtal med din handledare. Mallen följer ST:s återkommande
+            utvecklingssamtal.
           </p>
         </div>
         <Button onClick={createNew}>
@@ -118,9 +96,7 @@ function SupervisionPage() {
       {sorted.length === 0 ? (
         <Card className="border-dashed border-border/60">
           <CardContent className="py-16 text-center">
-            <p className="text-muted-foreground">
-              Inga handledarsamtal sparade ännu.
-            </p>
+            <p className="text-muted-foreground">Inga handledarsamtal sparade ännu.</p>
             <Button onClick={createNew} className="mt-4">
               <Plus className="mr-1 h-4 w-4" /> Skapa det första
             </Button>
@@ -129,13 +105,8 @@ function SupervisionPage() {
       ) : (
         <div className="grid gap-3">
           {sorted.map((s) => {
-            const answered = Object.values(s.answers).filter(
-              (v) => v.trim().length > 0,
-            ).length;
-            const totalQs = SUPERVISION_TEMPLATE.reduce(
-              (a, sec) => a + sec.questions.length,
-              0,
-            );
+            const answered = Object.values(s.answers).filter((v) => v.trim().length > 0).length;
+            const totalQs = SUPERVISION_TEMPLATE.reduce((a, sec) => a + sec.questions.length, 0);
             return (
               <button
                 key={s.id}
@@ -195,9 +166,7 @@ function SessionEditor({
 
       <Card className="mb-6 border-border/60">
         <CardHeader>
-          <CardTitle className="font-display text-2xl">
-            Handledarsamtal
-          </CardTitle>
+          <CardTitle className="font-display text-2xl">Handledarsamtal</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -238,30 +207,21 @@ function SessionEditor({
         {SUPERVISION_TEMPLATE.map((section) => (
           <Card key={section.id} className="border-border/60">
             <CardHeader>
-              <CardTitle className="font-display text-lg">
-                {section.title}
-              </CardTitle>
+              <CardTitle className="font-display text-lg">{section.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               {section.questions.map((q) => {
                 const key = `${section.id}:${q.id}`;
                 return (
                   <div key={q.id}>
-                    <Label
-                      htmlFor={key}
-                      className="text-sm font-medium text-foreground"
-                    >
+                    <Label htmlFor={key} className="text-sm font-medium text-foreground">
                       {q.question}
                     </Label>
-                    {q.hint && (
-                      <p className="text-xs text-muted-foreground">{q.hint}</p>
-                    )}
+                    {q.hint && <p className="text-xs text-muted-foreground">{q.hint}</p>}
                     <Textarea
                       id={key}
                       value={session.answers[key] ?? ""}
-                      onChange={(e) =>
-                        setAnswer(section.id, q.id, e.target.value)
-                      }
+                      onChange={(e) => setAnswer(section.id, q.id, e.target.value)}
                       rows={3}
                       className="mt-1.5"
                       placeholder="Skriv din reflektion…"

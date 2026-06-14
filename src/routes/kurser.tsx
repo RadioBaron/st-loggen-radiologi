@@ -4,7 +4,14 @@ import { Plus, Trash2, ExternalLink, Pencil, X, Check, Clock } from "lucide-reac
 import { toast } from "sonner";
 
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
-import { ALL_MILESTONES, DEFAULT_MILESTONES } from "@/lib/data/milestones";
+import { useActiveSpecialty } from "@/lib/specialty";
+import {
+  earnedByMilestone as computeEarned,
+  creditedMilestoneIds,
+  type Course,
+} from "@/lib/data/courses";
+import type { MilestoneCategory } from "@/lib/data/specialties";
+import { genId, nf } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,19 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export type CourseCredits = Record<string, number>;
-
-export type Course = {
-  id: string;
-  name: string;
-  date: string;
-  location?: string;
-  url?: string;
-  certificate: boolean;
-  credits: CourseCredits;
-  notes?: string;
-  done?: boolean; // genomförd (true) eller planerad (false/odefinierad)
-};
+export type { Course, CourseCredits } from "@/lib/data/courses";
 
 export const Route = createFileRoute("/kurser")({
   head: () => ({
@@ -44,14 +39,13 @@ export const Route = createFileRoute("/kurser")({
 
 const RESOURCE_LINKS = [
   { label: "Socialstyrelsen SK-kurser", url: "https://www.socialstyrelsen.se/sk-kurser/" },
-  { label: "SFMR kurser och kongresser", url: "https://www.sfmr.se/kurser/svenska-kurser-och-kongresser/" },
+  {
+    label: "SFMR kurser och kongresser",
+    url: "https://www.sfmr.se/kurser/svenska-kurser-och-kongresser/",
+  },
   { label: "ESR Congress Calendar", url: "https://congresscalendar.myesr.org/" },
   { label: "Lipus kurser", url: "https://www.lipus.se/" },
 ];
-
-function genId() {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 function emptyCourse(): Omit<Course, "id"> {
   return {
@@ -67,10 +61,8 @@ function emptyCourse(): Omit<Course, "id"> {
 }
 
 function CoursesPage() {
-  const [courses, setCourses] = useLocalState<Course[]>(
-    STORAGE_KEYS.courses,
-    [],
-  );
+  const { categories, allMilestones } = useActiveSpecialty();
+  const [courses, setCourses] = useLocalState<Course[]>(STORAGE_KEYS.courses, []);
   const [, setCompletedMilestones] = useLocalState<Record<string, boolean>>(
     STORAGE_KEYS.milestones,
     {},
@@ -80,7 +72,7 @@ function CoursesPage() {
 
   // Registrera delmålen som en kurs ger (markera dem som klara).
   const registerMilestones = (c: Course) => {
-    const ids = Object.keys(c.credits).filter((mid) => (c.credits[mid] || 0) > 0);
+    const ids = creditedMilestoneIds(c);
     if (ids.length === 0) return;
     setCompletedMilestones((prev) => {
       const next = { ...prev };
@@ -93,9 +85,7 @@ function CoursesPage() {
   // Markera kurs som genomförd/planerad. Vid "genomförd" registreras delmålen.
   const toggleDone = (c: Course) => {
     const nextDone = !c.done;
-    setCourses((prev) =>
-      prev.map((x) => (x.id === c.id ? { ...x, done: nextDone } : x)),
-    );
+    setCourses((prev) => prev.map((x) => (x.id === c.id ? { ...x, done: nextDone } : x)));
     if (nextDone) registerMilestones(c);
   };
 
@@ -116,9 +106,7 @@ function CoursesPage() {
       return;
     }
     setCourses((prev) =>
-      isNew
-        ? [...prev, editing]
-        : prev.map((c) => (c.id === editing.id ? editing : c)),
+      isNew ? [...prev, editing] : prev.map((c) => (c.id === editing.id ? editing : c)),
     );
     if (editing.done) registerMilestones(editing);
     toast.success(isNew ? "Kurs tillagd" : "Kurs sparad");
@@ -129,23 +117,10 @@ function CoursesPage() {
     setCourses((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const earnedByMilestone = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const c of courses) {
-      for (const [mid, credit] of Object.entries(c.credits)) {
-        map[mid] = (map[mid] || 0) + (credit || 0);
-      }
-    }
-    return map;
-  }, [courses]);
+  const earnedByMilestone = useMemo(() => computeEarned(courses), [courses]);
 
-  const totalEarned = ALL_MILESTONES.reduce(
-    (s, m) => s + (earnedByMilestone[m.id] || 0),
-    0,
-  );
-  const coveredCount = ALL_MILESTONES.filter(
-    (m) => (earnedByMilestone[m.id] || 0) > 0,
-  ).length;
+  const totalEarned = allMilestones.reduce((s, m) => s + (earnedByMilestone[m.id] || 0), 0);
+  const coveredCount = allMilestones.filter((m) => (earnedByMilestone[m.id] || 0) > 0).length;
 
   const planned = courses.filter((c) => !c.done);
   const doneCourses = courses.filter((c) => c.done);
@@ -190,14 +165,8 @@ function CoursesPage() {
               {c.location ? ` · ${c.location}` : ""}
             </p>
           )}
-          {tags && (
-            <p className="mt-1 font-mono text-xs text-muted-foreground">
-              Delmål: {tags}
-            </p>
-          )}
-          {c.notes && (
-            <p className="mt-1 text-sm text-muted-foreground">{c.notes}</p>
-          )}
+          {tags && <p className="mt-1 font-mono text-xs text-muted-foreground">Delmål: {tags}</p>}
+          {c.notes && <p className="mt-1 text-sm text-muted-foreground">{c.notes}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label="Redigera">
@@ -220,10 +189,9 @@ function CoursesPage() {
           </p>
           <h1 className="mt-1 text-4xl font-semibold tracking-tight">Kurser</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Lägg in kurser du planerar eller har gått, och tagga vilka delmål de
-            ger. Bockar du av en kurs som genomförd registreras dess delmål
-            automatiskt. Poängen (0,5 eller 1) är bara ett hjälpmedel – inget
-            fast krav.
+            Lägg in kurser du planerar eller har gått, och tagga vilka delmål de ger. Bockar du av
+            en kurs som genomförd registreras dess delmål automatiskt. Poängen (0,5 eller 1) är bara
+            ett hjälpmedel – inget fast krav.
           </p>
         </div>
         <Button onClick={openNew}>
@@ -238,14 +206,12 @@ function CoursesPage() {
             <p className="text-sm text-muted-foreground">kurser loggade</p>
           </div>
           <div>
-            <p className="font-display text-3xl font-semibold">
-              {totalEarned.toLocaleString("sv-SE")}
-            </p>
+            <p className="font-display text-3xl font-semibold">{nf(totalEarned)}</p>
             <p className="text-sm text-muted-foreground">poäng samlade</p>
           </div>
           <div>
             <p className="font-display text-3xl font-semibold">
-              {coveredCount} / {ALL_MILESTONES.length}
+              {coveredCount} / {allMilestones.length}
             </p>
             <p className="text-sm text-muted-foreground">delmål med kursunderlag</p>
           </div>
@@ -258,11 +224,9 @@ function CoursesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {DEFAULT_MILESTONES.map((cat) => (
+            {categories.map((cat) => (
               <div key={cat.id}>
-                <p className="mb-3 text-sm font-medium text-muted-foreground">
-                  {cat.title}
-                </p>
+                <p className="mb-3 text-sm font-medium text-muted-foreground">{cat.title}</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {cat.milestones.map((m) => {
                     const earned = earnedByMilestone[m.id] || 0;
@@ -276,9 +240,7 @@ function CoursesPage() {
                             : "border-border/60 bg-card"
                         }`}
                       >
-                        <span className="font-mono text-sm font-medium">
-                          {m.shortTitle}
-                        </span>
+                        <span className="font-mono text-sm font-medium">{m.shortTitle}</span>
                         <span
                           className={
                             has
@@ -286,7 +248,7 @@ function CoursesPage() {
                               : "text-sm text-muted-foreground"
                           }
                         >
-                          {has ? `${earned.toLocaleString("sv-SE")} p` : "–"}
+                          {has ? `${nf(earned)} p` : "–"}
                         </span>
                       </div>
                     );
@@ -300,16 +262,12 @@ function CoursesPage() {
 
       <Card className="border-border/60">
         <CardHeader>
-          <CardTitle className="font-display text-xl">
-            Mina kurser ({courses.length})
-          </CardTitle>
+          <CardTitle className="font-display text-xl">Mina kurser ({courses.length})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {courses.length === 0 ? (
             <div className="py-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                Inga kurser inlagda ännu.
-              </p>
+              <p className="text-sm text-muted-foreground">Inga kurser inlagda ännu.</p>
               <Button onClick={openNew} className="mt-4">
                 <Plus className="mr-1 h-4 w-4" /> Lägg till första kursen
               </Button>
@@ -321,9 +279,7 @@ function CoursesPage() {
                   <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                     <Clock className="h-4 w-4" /> Planerade ({planned.length})
                   </p>
-                  <ul className="divide-y divide-border/60">
-                    {planned.map(renderCourse)}
-                  </ul>
+                  <ul className="divide-y divide-border/60">{planned.map(renderCourse)}</ul>
                 </div>
               )}
               {doneCourses.length > 0 && (
@@ -331,9 +287,7 @@ function CoursesPage() {
                   <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[color:var(--color-success)]">
                     <Check className="h-4 w-4" /> Genomförda ({doneCourses.length})
                   </p>
-                  <ul className="divide-y divide-border/60">
-                    {doneCourses.map(renderCourse)}
-                  </ul>
+                  <ul className="divide-y divide-border/60">{doneCourses.map(renderCourse)}</ul>
                 </div>
               )}
             </>
@@ -360,6 +314,7 @@ function CoursesPage() {
 
       <CourseDialog
         course={editing}
+        categories={categories}
         onChange={setEditing}
         onSave={save}
         onClose={() => setEditing(null)}
@@ -370,11 +325,13 @@ function CoursesPage() {
 
 function CourseDialog({
   course,
+  categories,
   onChange,
   onSave,
   onClose,
 }: {
   course: Course | null;
+  categories: MilestoneCategory[];
   onChange: (c: Course) => void;
   onSave: () => void;
   onClose: () => void;
@@ -404,9 +361,7 @@ function CourseDialog({
                 <Input
                   id="cname"
                   value={course.name}
-                  onChange={(e) =>
-                    onChange({ ...course, name: e.target.value })
-                  }
+                  onChange={(e) => onChange({ ...course, name: e.target.value })}
                   className="mt-1"
                   placeholder="t.ex. SK-kurs Thoraxradiologi"
                 />
@@ -416,9 +371,7 @@ function CourseDialog({
                 <Input
                   id="cdate"
                   value={course.date}
-                  onChange={(e) =>
-                    onChange({ ...course, date: e.target.value })
-                  }
+                  onChange={(e) => onChange({ ...course, date: e.target.value })}
                   className="mt-1"
                   placeholder="2024-05-13 – 2024-05-16"
                 />
@@ -428,9 +381,7 @@ function CourseDialog({
                 <Input
                   id="cloc"
                   value={course.location ?? ""}
-                  onChange={(e) =>
-                    onChange({ ...course, location: e.target.value })
-                  }
+                  onChange={(e) => onChange({ ...course, location: e.target.value })}
                   className="mt-1"
                 />
               </div>
@@ -450,9 +401,7 @@ function CourseDialog({
                   id="cdone"
                   type="checkbox"
                   checked={!!course.done}
-                  onChange={(e) =>
-                    onChange({ ...course, done: e.target.checked })
-                  }
+                  onChange={(e) => onChange({ ...course, done: e.target.checked })}
                   className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="cdone" className="cursor-pointer">
@@ -464,9 +413,7 @@ function CourseDialog({
                   id="ccert"
                   type="checkbox"
                   checked={course.certificate}
-                  onChange={(e) =>
-                    onChange({ ...course, certificate: e.target.checked })
-                  }
+                  onChange={(e) => onChange({ ...course, certificate: e.target.checked })}
                   className="h-4 w-4 rounded border-border"
                 />
                 <Label htmlFor="ccert" className="cursor-pointer">
@@ -478,18 +425,13 @@ function CourseDialog({
             <div>
               <p className="text-sm font-medium">Poäng per delmål</p>
               <p className="text-xs text-muted-foreground">
-                Klicka för 1,0 poäng. Klicka igen för 0,5 (del av delmål).
-                Tredje klick rensar.
+                Klicka för 1,0 poäng. Klicka igen för 0,5 (del av delmål). Tredje klick rensar.
               </p>
               <div className="mt-3 space-y-4">
-                {DEFAULT_MILESTONES.map((cat) => (
+                {categories.map((cat) => (
                   <div key={cat.id}>
                     <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {cat.id === "a"
-                        ? "Delmål a"
-                        : cat.id === "b"
-                          ? "Delmål b"
-                          : "Delmål c"}
+                      {cat.title}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {cat.milestones.map((m) => {

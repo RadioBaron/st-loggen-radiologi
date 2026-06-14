@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useStData } from "@/lib/stats";
+import { stripMilestonePrefix, nf } from "@/lib/utils";
 import { ProgressRing } from "@/components/ProgressRing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -19,7 +20,10 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Översikt – STigen Radiologi" },
-      { name: "description", content: "Översikt över din ST-progression: månader, delmål, kurser och handledarsamtal." },
+      {
+        name: "description",
+        content: "Översikt över din ST-progression: månader, delmål, kurser och handledarsamtal.",
+      },
     ],
   }),
   component: Dashboard,
@@ -43,10 +47,12 @@ function Dashboard() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
           Du har loggat{" "}
-          <strong className="text-foreground">{d.monthsLogged} av {d.goalMonths}</strong>{" "}
+          <strong className="text-foreground">
+            {d.monthsLogged} av {d.goalMonths}
+          </strong>{" "}
           månaders tjänstgöring inom {d.profile.specialty.toLowerCase()}.
           {d.goalMonths - d.monthsLogged > 0
-            ? ` ${(d.goalMonths - d.monthsLogged).toLocaleString("sv-SE")} månader kvar till målet.`
+            ? ` ${nf(d.goalMonths - d.monthsLogged)} månader kvar till målet.`
             : " Du har nått måltiden — dags att förbereda ansökan."}
         </p>
 
@@ -98,7 +104,7 @@ function Dashboard() {
             />
           }
           title="Kurser"
-          detail={`${d.courses.length} kurser · ${d.totalPoints.toLocaleString("sv-SE")} poäng`}
+          detail={`${d.courses.length} kurser · ${nf(d.totalPoints)} poäng`}
         />
       </div>
 
@@ -122,10 +128,10 @@ function Dashboard() {
                       {m.shortTitle}
                     </span>
                     <p className="min-w-0 flex-1 truncate text-sm">
-                      {m.title.replace(/^[a-z0-9]+ – /i, "")}
+                      {stripMilestonePrefix(m.title)}
                     </p>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {m.earned > 0 ? `${m.earned.toLocaleString("sv-SE")} p samlat` : "–"}
+                      {m.earned > 0 ? `${nf(m.earned)} p samlat` : "–"}
                     </span>
                   </li>
                 ))}
@@ -141,9 +147,25 @@ function Dashboard() {
         </Card>
 
         <div className="grid gap-3">
-          <QuickLink to="/ansokan" icon={<FileCheck2 className="h-5 w-5" />} title="Förbered ansökan" description="Sammanställ allt inför specialistbeviset." highlight />
-          <QuickLink to="/delmal" icon={<ListChecks className="h-5 w-5" />} title="Delmål" description="Bocka av delmål." />
-          <QuickLink to="/handledarsamtal" icon={<MessagesSquare className="h-5 w-5" />} title="Handledarsamtal" description={`${d.sessions.length} sparade samtal`} />
+          <QuickLink
+            to="/ansokan"
+            icon={<FileCheck2 className="h-5 w-5" />}
+            title="Förbered ansökan"
+            description="Sammanställ allt inför specialistbeviset."
+            highlight
+          />
+          <QuickLink
+            to="/delmal"
+            icon={<ListChecks className="h-5 w-5" />}
+            title="Delmål"
+            description="Bocka av delmål."
+          />
+          <QuickLink
+            to="/handledarsamtal"
+            icon={<MessagesSquare className="h-5 w-5" />}
+            title="Handledarsamtal"
+            description={`${d.sessions.length} sparade samtal`}
+          />
         </div>
       </div>
     </div>

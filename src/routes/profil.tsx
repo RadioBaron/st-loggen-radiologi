@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Save, User } from "lucide-react";
+import { Save, User, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
 import { DEFAULT_PROFILE, type Profile } from "@/lib/data/profile";
+import { getSpecialty } from "@/lib/data/specialties";
+import { SpecialtyPicker } from "@/components/SpecialtyPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,10 @@ export const Route = createFileRoute("/profil")({
   head: () => ({
     meta: [
       { title: "Profil – STigen Radiologi" },
-      { name: "description", content: "Dina uppgifter som används i översikten och specialistansökan." },
+      {
+        name: "description",
+        content: "Dina uppgifter som används i översikten och specialistansökan.",
+      },
     ],
   }),
   component: ProfilePage,
@@ -21,8 +26,11 @@ export const Route = createFileRoute("/profil")({
 
 const FIELDS: { key: keyof Profile; label: string; placeholder?: string; type?: string }[] = [
   { key: "name", label: "Namn", placeholder: "För- och efternamn" },
-  { key: "specialty", label: "Specialitet" },
-  { key: "region", label: "Region / sjukvårdshuvudman", placeholder: "t.ex. Västra Götalandsregionen" },
+  {
+    key: "region",
+    label: "Region / sjukvårdshuvudman",
+    placeholder: "t.ex. Västra Götalandsregionen",
+  },
   { key: "clinic", label: "Klinik / arbetsplats", placeholder: "t.ex. Röntgen, Sahlgrenska" },
   { key: "licenseDate", label: "Legitimationsdatum", type: "date" },
   { key: "startDate", label: "ST-startdatum", type: "date" },
@@ -32,13 +40,24 @@ const FIELDS: { key: keyof Profile; label: string; placeholder?: string; type?: 
 ];
 
 function ProfilePage() {
-  const [profile, setProfile] = useLocalState<Profile>(
-    STORAGE_KEYS.profile,
-    DEFAULT_PROFILE,
-  );
+  const [specialtyId, setSpecialtyId] = useLocalState<string>(STORAGE_KEYS.specialty, "");
+  const [profile, setProfile] = useLocalState<Profile>(STORAGE_KEYS.profile, DEFAULT_PROFILE);
 
   const set = (key: keyof Profile, value: string | number) =>
     setProfile((p) => ({ ...p, [key]: value }));
+
+  // Byt specialitet: spara id + synka profilens namn och måltid.
+  const chooseSpecialty = (id: string) => {
+    const s = getSpecialty(id);
+    if (!s) return;
+    setSpecialtyId(id);
+    setProfile((p) => ({
+      ...p,
+      specialty: s.name,
+      goalMonths: p.goalMonths || s.goalMonths,
+    }));
+    toast.success(`Specialitet: ${s.name}`);
+  };
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-8 md:px-6 md:py-10">
@@ -48,10 +67,25 @@ function ProfilePage() {
           <User className="h-7 w-7 text-primary" /> Profil
         </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Uppgifterna används i översikten och förifylls automatiskt i
-          ansökningshjälpen. Allt sparas lokalt på din enhet.
+          Uppgifterna används i översikten och förifylls automatiskt i ansökningshjälpen. Allt
+          sparas lokalt på din enhet.
         </p>
       </div>
+
+      <Card className="mb-4 border-border/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-lg">
+            <Stethoscope className="h-5 w-5 text-primary" /> Specialitet
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Vald specialitet styr vilka delmål och placeringar som visas i appen.
+            {getSpecialty(specialtyId) ? ` Just nu: ${getSpecialty(specialtyId)!.name}.` : ""}
+          </p>
+          <SpecialtyPicker selectedId={specialtyId} onSelect={chooseSpecialty} />
+        </CardContent>
+      </Card>
 
       <Card className="border-border/60">
         <CardHeader>
@@ -86,10 +120,7 @@ function ProfilePage() {
             </div>
           </div>
 
-          <Button
-            className="mt-6"
-            onClick={() => toast.success("Profil sparad")}
-          >
+          <Button className="mt-6" onClick={() => toast.success("Profil sparad")}>
             <Save className="mr-1 h-4 w-4" /> Spara
           </Button>
           <p className="mt-2 text-xs text-muted-foreground">

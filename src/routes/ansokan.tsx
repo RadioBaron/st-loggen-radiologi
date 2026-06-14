@@ -3,6 +3,8 @@ import { FileCheck2, Printer, CheckCircle2, AlertCircle, Circle } from "lucide-r
 
 import { useStData } from "@/lib/stats";
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
+import { entryStart, scheduleDisplayName } from "@/lib/data/schedule";
+import { formatDate, stripMilestonePrefix, nf } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,13 +22,37 @@ export const Route = createFileRoute("/ansokan")({
 // Underlag som Socialstyrelsen kräver (intyg/blanketter) för ansökan om
 // bevis om specialistkompetens enligt SOSFS/HSLF-FS 2021:8.
 const CHECKLIST: { id: string; label: string; hint?: string }[] = [
-  { id: "tjanstgoring", label: "Intyg om klinisk tjänstgöring under handledning", hint: "Ett intyg per tjänstgöringsperiod, signerat av handledare." },
-  { id: "delmal", label: "Intyg om uppnådd kompetens för samtliga delmål", hint: "Bedömning per delmål, signerad av handledare." },
-  { id: "kurser", label: "Kursintyg för samtliga genomförda kurser", hint: "Samlas in löpande under ST." },
-  { id: "vetenskap", label: "Intyg om skriftligt individuellt arbete (delmål a5)", hint: "Vetenskapligt arbete enligt vetenskapliga principer." },
+  {
+    id: "tjanstgoring",
+    label: "Intyg om klinisk tjänstgöring under handledning",
+    hint: "Ett intyg per tjänstgöringsperiod, signerat av handledare.",
+  },
+  {
+    id: "delmal",
+    label: "Intyg om uppnådd kompetens för samtliga delmål",
+    hint: "Bedömning per delmål, signerad av handledare.",
+  },
+  {
+    id: "kurser",
+    label: "Kursintyg för samtliga genomförda kurser",
+    hint: "Samlas in löpande under ST.",
+  },
+  {
+    id: "vetenskap",
+    label: "Intyg om skriftligt individuellt arbete (delmål a5)",
+    hint: "Vetenskapligt arbete enligt vetenskapliga principer.",
+  },
   { id: "kvalitet", label: "Intyg om självständigt kvalitets- och förbättringsarbete (delmål a4)" },
-  { id: "summa", label: "Intyg om uppnådd specialistkompetens", hint: "Sammanfattande intyg signerat av huvudhandledare och verksamhetschef." },
-  { id: "blankett", label: "Ifylld ansökningsblankett till Socialstyrelsen", hint: "Skickas via Socialstyrelsens e-tjänst." },
+  {
+    id: "summa",
+    label: "Intyg om uppnådd specialistkompetens",
+    hint: "Sammanfattande intyg signerat av huvudhandledare och verksamhetschef.",
+  },
+  {
+    id: "blankett",
+    label: "Ifylld ansökningsblankett till Socialstyrelsen",
+    hint: "Skickas via Socialstyrelsens e-tjänst.",
+  },
 ];
 
 function StatusIcon({ ok, warn }: { ok: boolean; warn?: boolean }) {
@@ -37,10 +63,7 @@ function StatusIcon({ ok, warn }: { ok: boolean; warn?: boolean }) {
 
 function ApplicationPage() {
   const d = useStData();
-  const [checks, setChecks] = useLocalState<Record<string, boolean>>(
-    STORAGE_KEYS.application,
-    {},
-  );
+  const [checks, setChecks] = useLocalState<Record<string, boolean>>(STORAGE_KEYS.application, {});
 
   const monthsOk = d.monthsLogged >= d.goalMonths;
   const delmalOk = d.doneMilestones === d.totalMilestones;
@@ -48,23 +71,38 @@ function ApplicationPage() {
 
   const readiness = [
     { label: "Tjänstgöring", ok: monthsOk, value: `${d.monthsLogged} / ${d.goalMonths} mån` },
-    { label: "Delmål avklarade", ok: delmalOk, value: `${d.doneMilestones} / ${d.totalMilestones}` },
-    { label: "Kurser", ok: d.courses.length > 0, warn: d.courses.length === 0, value: `${d.courses.length} st` },
-    { label: "Handledarsamtal", ok: d.sessions.length > 0, warn: d.sessions.length === 0, value: `${d.sessions.length} st` },
+    {
+      label: "Delmål avklarade",
+      ok: delmalOk,
+      value: `${d.doneMilestones} / ${d.totalMilestones}`,
+    },
+    {
+      label: "Kurser",
+      ok: d.courses.length > 0,
+      warn: d.courses.length === 0,
+      value: `${d.courses.length} st`,
+    },
+    {
+      label: "Handledarsamtal",
+      ok: d.sessions.length > 0,
+      warn: d.sessions.length === 0,
+      value: `${d.sessions.length} st`,
+    },
   ];
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8 md:px-6 md:py-10">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 print:hidden">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-primary">Inför specialistbeviset</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-primary">
+            Inför specialistbeviset
+          </p>
           <h1 className="mt-1 flex items-center gap-2 font-display text-3xl font-semibold tracking-tight md:text-4xl">
             <FileCheck2 className="h-7 w-7 text-primary" /> Ansökan
           </h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Här samlas allt du behöver inför ansökan om bevis om
-            specialistkompetens. Bocka av underlagen och skriv ut en
-            sammanställning till din handledare.
+            Här samlas allt du behöver inför ansökan om bevis om specialistkompetens. Bocka av
+            underlagen och skriv ut en sammanställning till din handledare.
           </p>
         </div>
         <Button onClick={() => window.print()}>
@@ -104,9 +142,7 @@ function ApplicationPage() {
                 <label className="flex cursor-pointer items-start gap-3 py-3">
                   <Checkbox
                     checked={!!checks[c.id]}
-                    onCheckedChange={() =>
-                      setChecks((prev) => ({ ...prev, [c.id]: !prev[c.id] }))
-                    }
+                    onCheckedChange={() => setChecks((prev) => ({ ...prev, [c.id]: !prev[c.id] }))}
                     className="mt-0.5"
                   />
                   <div>
@@ -130,21 +166,8 @@ function ApplicationPage() {
 
 function PrintableSummary({ d }: { d: ReturnType<typeof useStData> }) {
   const p = d.profile;
-  const startOf = (e: (typeof d.schedule)[number]) =>
-    e.startDate || (e.startMonth ? `${e.startMonth}-01` : "");
-  const nameOf = (e: (typeof d.schedule)[number]) =>
-    e.department === "Övrigt" ? e.customName?.trim() || "Övrigt" : e.department;
-  const fmtDate = (s: string) =>
-    s
-      ? new Date(s).toLocaleDateString("sv-SE", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : "–";
-  const sortedSchedule = [...d.schedule].sort((a, b) =>
-    startOf(a).localeCompare(startOf(b)),
-  );
+  const fmtDate = (s: string) => formatDate(s) || "–";
+  const sortedSchedule = [...d.schedule].sort((a, b) => entryStart(a).localeCompare(entryStart(b)));
   return (
     <Card className="border-border/60">
       <CardContent className="space-y-6 p-6 md:p-8">
@@ -195,12 +218,12 @@ function PrintableSummary({ d }: { d: ReturnType<typeof useStData> }) {
               <tbody>
                 {sortedSchedule.map((e) => (
                   <tr key={e.id} className="border-b border-border/40">
-                    <td className="py-1">{nameOf(e)}</td>
+                    <td className="py-1">{scheduleDisplayName(e)}</td>
                     <td className="py-1">
-                      {fmtDate(startOf(e))}
+                      {fmtDate(entryStart(e))}
                       {e.endDate ? ` – ${fmtDate(e.endDate)}` : ""}
                     </td>
-                    <td className="py-1 text-right">{(e.months || 0).toLocaleString("sv-SE")}</td>
+                    <td className="py-1 text-right">{nf(e.months || 0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -230,7 +253,9 @@ function PrintableSummary({ d }: { d: ReturnType<typeof useStData> }) {
                     <td className="py-1">{c.name}</td>
                     <td className="py-1">{c.date}</td>
                     <td className="py-1 font-mono text-xs">
-                      {Object.keys(c.credits).filter((k) => c.credits[k] > 0).join(", ")}
+                      {Object.keys(c.credits)
+                        .filter((k) => c.credits[k] > 0)
+                        .join(", ")}
                     </td>
                   </tr>
                 ))}
@@ -243,21 +268,27 @@ function PrintableSummary({ d }: { d: ReturnType<typeof useStData> }) {
         <section>
           <h3 className="mb-2 font-display text-base font-semibold">Delmål – status</h3>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {d.categories.flatMap((cat) => cat.milestones).map((m) => {
-              const earned = d.earnedByMilestone[m.id] || 0;
-              const done = !!d.completed[m.id];
-              return (
-                <div key={m.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="min-w-0 truncate">
-                    <span className="font-mono text-xs text-muted-foreground">{m.shortTitle}</span>{" "}
-                    {m.title.replace(/^[a-z0-9]+ – /i, "")}
-                  </span>
-                  <span className={`shrink-0 text-xs ${done ? "text-[color:var(--color-success)]" : "text-muted-foreground"}`}>
-                    {done ? "✓ klar" : earned > 0 ? `${earned.toLocaleString("sv-SE")} p` : "–"}
-                  </span>
-                </div>
-              );
-            })}
+            {d.categories
+              .flatMap((cat) => cat.milestones)
+              .map((m) => {
+                const earned = d.earnedByMilestone[m.id] || 0;
+                const done = !!d.completed[m.id];
+                return (
+                  <div key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {m.shortTitle}
+                      </span>{" "}
+                      {stripMilestonePrefix(m.title)}
+                    </span>
+                    <span
+                      className={`shrink-0 text-xs ${done ? "text-[color:var(--color-success)]" : "text-muted-foreground"}`}
+                    >
+                      {done ? "✓ klar" : earned > 0 ? `${nf(earned)} p` : "–"}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </section>
       </CardContent>

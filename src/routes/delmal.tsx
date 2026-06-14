@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { ChevronDown, GraduationCap, Plus } from "lucide-react";
 
 import { useLocalState, STORAGE_KEYS } from "@/lib/storage";
-import { DEFAULT_MILESTONES } from "@/lib/data/milestones";
-import type { Course } from "@/routes/kurser";
+import { useActiveSpecialty } from "@/lib/specialty";
+import { courseLinksByMilestone, type Course } from "@/lib/data/courses";
+import { nf } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
@@ -13,15 +14,17 @@ export const Route = createFileRoute("/delmal")({
   head: () => ({
     meta: [
       { title: "Delmål – STigen Radiologi" },
-      { name: "description", content: "Kryssa av delmål och se vilka kurser som kopplats till varje delmål." },
+      {
+        name: "description",
+        content: "Kryssa av delmål och se vilka kurser som kopplats till varje delmål.",
+      },
     ],
   }),
   component: MilestonesPage,
 });
 
-type CourseLink = { id: string; name: string; date: string; points: number };
-
 function MilestonesPage() {
+  const { categories } = useActiveSpecialty();
   const [completed, setCompleted] = useLocalState<Record<string, boolean>>(
     STORAGE_KEYS.milestones,
     {},
@@ -29,38 +32,30 @@ function MilestonesPage() {
   const [courses] = useLocalState<Course[]>(STORAGE_KEYS.courses, []);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
-  const toggle = (id: string) =>
-    setCompleted((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggle = (id: string) => setCompleted((prev) => ({ ...prev, [id]: !prev[id] }));
 
-  // Bygg index: delmål-id -> lista av bidragande kurser med poäng.
-  const linksByMilestone = useMemo(() => {
-    const map: Record<string, CourseLink[]> = {};
-    for (const c of courses) {
-      for (const [mid, pts] of Object.entries(c.credits)) {
-        if (!pts) continue;
-        (map[mid] ||= []).push({ id: c.id, name: c.name, date: c.date, points: pts });
-      }
-    }
-    return map;
-  }, [courses]);
+  // Index: delmål-id -> bidragande kurser med poäng.
+  const linksByMilestone = useMemo(() => courseLinksByMilestone(courses), [courses]);
 
   const totals = useMemo(() => {
-    const total = DEFAULT_MILESTONES.reduce((s, c) => s + c.milestones.length, 0);
-    const done = DEFAULT_MILESTONES.reduce(
+    const total = categories.reduce((s, c) => s + c.milestones.length, 0);
+    const done = categories.reduce(
       (s, c) => s + c.milestones.filter((m) => completed[m.id]).length,
       0,
     );
     return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
-  }, [completed]);
+  }, [categories, completed]);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-8 md:px-6 md:py-10">
       <div className="mb-8">
         <p className="text-sm font-medium uppercase tracking-wide text-primary">Målbeskrivning</p>
-        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight md:text-4xl">Delmål</h1>
+        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight md:text-4xl">
+          Delmål
+        </h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Bocka av delmålen efterhand som du uppfyller dem. Öppna ett delmål för
-          att se vilka kurser som kopplats dit.
+          Bocka av delmålen efterhand som du uppfyller dem. Öppna ett delmål för att se vilka kurser
+          som kopplats dit.
         </p>
       </div>
 
@@ -80,7 +75,7 @@ function MilestonesPage() {
       </Card>
 
       <div className="space-y-6">
-        {DEFAULT_MILESTONES.map((category) => {
+        {categories.map((category) => {
           const catDone = category.milestones.filter((m) => completed[m.id]).length;
           return (
             <Card key={category.id} className="border-border/60">
@@ -111,14 +106,18 @@ function MilestonesPage() {
                             onClick={() => setOpen((o) => ({ ...o, [m.id]: !o[m.id] }))}
                             className="flex flex-1 items-center justify-between gap-3 text-left"
                           >
-                            <span className={isDone ? "text-muted-foreground line-through" : "text-foreground"}>
+                            <span
+                              className={
+                                isDone ? "text-muted-foreground line-through" : "text-foreground"
+                              }
+                            >
                               {m.title}
                             </span>
                             <span className="flex shrink-0 items-center gap-2">
                               {links.length > 0 ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
                                   <GraduationCap className="h-3 w-3" />
-                                  {links.length} · {points.toLocaleString("sv-SE")} p
+                                  {links.length} · {nf(points)} p
                                 </span>
                               ) : (
                                 <span className="text-xs text-muted-foreground">inga kurser</span>
@@ -135,14 +134,20 @@ function MilestonesPage() {
                             {links.length === 0 ? (
                               <p className="text-sm text-muted-foreground">
                                 Inga kurser kopplade till detta delmål ännu.{" "}
-                                <Link to="/kurser" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                <Link
+                                  to="/kurser"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                                >
                                   <Plus className="h-3 w-3" /> Lägg till kurs
                                 </Link>
                               </p>
                             ) : (
                               <ul className="space-y-1.5">
                                 {links.map((l) => (
-                                  <li key={l.id} className="flex items-center justify-between gap-3 text-sm">
+                                  <li
+                                    key={l.id}
+                                    className="flex items-center justify-between gap-3 text-sm"
+                                  >
                                     <span className="min-w-0 flex-1 truncate">
                                       {l.name}
                                       {l.date && (
@@ -150,7 +155,7 @@ function MilestonesPage() {
                                       )}
                                     </span>
                                     <span className="shrink-0 font-mono text-xs text-primary">
-                                      {l.points.toLocaleString("sv-SE")} p
+                                      {nf(l.points)} p
                                     </span>
                                   </li>
                                 ))}
