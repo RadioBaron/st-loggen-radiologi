@@ -22,46 +22,63 @@ const STB_TITLES: Record<number, string> = {
   4: "Palliativ vård",
 };
 
-function milestone(prefix: "a" | "b" | "c", n: number, title?: string): Milestone {
+// VIKTIGT: delmåls-id prefixas med specialitetens id. Avbockade delmål och
+// kurskopplingar lagras globalt per delmåls-id, så utan prefix skulle t.ex.
+// "stc5" delas mellan alla specialiteter och avbockningar/kurser läcka mellan
+// dem. shortTitle (det som visas) är fortfarande den korta koden, t.ex. "STc5".
+function milestone(
+  specialtyId: string,
+  prefix: "a" | "b" | "c",
+  n: number,
+  title?: string,
+): Milestone {
   const code = `ST${prefix}${n}`;
   return {
-    id: `st${prefix}${n}`,
+    id: `${specialtyId}:st${prefix}${n}`,
     shortTitle: code,
     title: title ? `${code} – ${title}` : code,
   };
 }
 
-/** STa1–STa7 (samma för alla specialiteter). */
-export const STA_MILESTONES: Milestone[] = Object.keys(STA_TITLES)
-  .map(Number)
-  .sort((a, b) => a - b)
-  .map((n) => milestone("a", n, STA_TITLES[n]));
-
-/** Bygger STb-delmål för de nummer som är tillämpliga för specialiteten. */
-export function stbMilestones(nums: number[]): Milestone[] {
-  return [...nums].sort((a, b) => a - b).map((n) => milestone("b", n, STB_TITLES[n]));
+/** STa1–STa7 för en specialitet (titlarna är gemensamma; id:t är prefixat). */
+export function staMilestones(specialtyId: string): Milestone[] {
+  return Object.keys(STA_TITLES)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((n) => milestone(specialtyId, "a", n, STA_TITLES[n]));
 }
 
-/** Bygger STc1…N (specialitetsspecifika; föreskriften ger inga titlar). */
-export function stcMilestones(count: number): Milestone[] {
-  return Array.from({ length: count }, (_, i) => milestone("c", i + 1));
+/** Bygger STb-delmål för de nummer som är tillämpliga för specialiteten. */
+export function stbMilestones(specialtyId: string, nums: number[]): Milestone[] {
+  return [...nums].sort((a, b) => a - b).map((n) => milestone(specialtyId, "b", n, STB_TITLES[n]));
+}
+
+/** Bygger STc1…N (specialitetsspecifika; föreskriften ger inga korta titlar). */
+export function stcMilestones(specialtyId: string, count: number): Milestone[] {
+  return Array.from({ length: count }, (_, i) =>
+    milestone(specialtyId, "c", i + 1, `Specialitetsspecifikt delmål ${i + 1}`),
+  );
 }
 
 /**
  * Sätter ihop kategorierna för en specialitet utifrån STb-delmängd och antal STc.
  * STa-kategorin är alltid med; STb tas med om minst ett delmål gäller.
  */
-export function buildCategories(stbNums: number[], stcCount: number): MilestoneCategory[] {
+export function buildCategories(
+  specialtyId: string,
+  stbNums: number[],
+  stcCount: number,
+): MilestoneCategory[] {
   const categories: MilestoneCategory[] = [
     {
       id: "a",
       title: "STa – Specialitetsövergripande kompetenser",
       description: "Gemensamma kompetenser som gäller för alla specialiteter.",
-      milestones: STA_MILESTONES,
+      milestones: staMilestones(specialtyId),
     },
   ];
 
-  const stb = stbMilestones(stbNums);
+  const stb = stbMilestones(specialtyId, stbNums);
   if (stb.length > 0) {
     categories.push({
       id: "b",
@@ -77,7 +94,7 @@ export function buildCategories(stbNums: number[], stcCount: number): MilestoneC
       title: "STc – Specialitetsspecifika kompetenser",
       description:
         "Delmål specifika för specialiteten. Föreskriften numrerar dem (STc1…N) utan korta titlar.",
-      milestones: stcMilestones(stcCount),
+      milestones: stcMilestones(specialtyId, stcCount),
     });
   }
 

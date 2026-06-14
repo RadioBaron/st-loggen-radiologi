@@ -42,7 +42,7 @@ function specialty(
     group,
     type,
     goalMonths,
-    categories: gen ? buildCategories(gen.stb, gen.stc) : undefined,
+    categories: gen ? buildCategories(id, gen.stb, gen.stc) : undefined,
   };
 }
 
