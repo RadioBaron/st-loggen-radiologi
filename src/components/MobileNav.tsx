@@ -12,9 +12,9 @@ import {
   FileCheck2,
   Settings,
   User,
-  Stethoscope,
 } from "lucide-react";
 
+import { Logo } from "@/components/Logo";
 import {
   Sheet,
   SheetContent,
@@ -87,7 +87,7 @@ export function MobileNav() {
           <SheetContent side="bottom" className="rounded-t-2xl">
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2 font-display">
-                <Stethoscope className="h-5 w-5 text-primary" /> ST-loggen
+                <Logo className="h-6 w-6" /> STigen
               </SheetTitle>
             </SheetHeader>
             <div className="grid gap-2 p-4">

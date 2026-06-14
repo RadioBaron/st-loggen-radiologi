@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 export const Route = createFileRoute("/delmal")({
   head: () => ({
     meta: [
-      { title: "Delmål – ST-loggen Radiologi" },
+      { title: "Delmål – STigen Radiologi" },
       { name: "description", content: "Kryssa av delmål och se vilka kurser som kopplats till varje delmål." },
     ],
   }),

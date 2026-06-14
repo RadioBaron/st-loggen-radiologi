@@ -1,16 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="STigen">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2a7d8c"/>
-      <stop offset="1" stop-color="#1a4d57"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f8a99"/>
+      <stop offset="1" stop-color="#173f48"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M168 120v92a88 88 0 0 0 176 0v-92"/>
-    <path d="M168 120h-28M168 120h28M344 120h-28M344 120h28"/>
-    <circle cx="256" cy="356" r="40" fill="#ffffff" stroke="none"/>
-    <path d="M256 300v-12"/>
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+
+  <!-- Stigen: en slingrande väg uppåt mot målet -->
+  <path d="M156 392 C156 332 356 332 356 272 C356 212 156 212 156 152 C156 124 198 114 252 112"
+        fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+
+  <!-- Milstolpar längs vägen -->
+  <g>
+    <circle cx="156" cy="392" r="21" fill="#ffffff"/>
+    <circle cx="156" cy="392" r="8" fill="#2f8a99"/>
+    <circle cx="356" cy="272" r="21" fill="#ffffff"/>
+    <circle cx="356" cy="272" r="8" fill="#2f8a99"/>
+    <circle cx="156" cy="152" r="21" fill="#ffffff"/>
+    <circle cx="156" cy="152" r="8" fill="#2f8a99"/>
   </g>
-  <circle cx="256" cy="356" r="16" fill="#2a7d8c"/>
+
+  <!-- Målflagga på toppen -->
+  <line x1="252" y1="118" x2="252" y2="64" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+  <path d="M252 70 L300 84 L252 100 Z" fill="#7ad9c4"/>
 </svg>

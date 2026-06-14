@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 export const Route = createFileRoute("/ansokan")({
   head: () => ({
     meta: [
-      { title: "Ansökan – ST-loggen Radiologi" },
+      { title: "Ansökan – STigen Radiologi" },
       { name: "description", content: "Förbered din ansökan om bevis om specialistkompetens." },
     ],
   }),
@@ -153,7 +153,7 @@ function PrintableSummary({ d }: { d: ReturnType<typeof useStData> }) {
             Sammanställning av ST – {p.specialty || "Radiologi"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Genererad {new Date().toLocaleDateString("sv-SE")} · ST-loggen
+            Genererad {new Date().toLocaleDateString("sv-SE")} · STigen
           </p>
         </div>
 

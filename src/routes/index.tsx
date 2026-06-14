@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Översikt – ST-loggen Radiologi" },
+      { title: "Översikt – STigen Radiologi" },
       { name: "description", content: "Översikt över din ST-progression: månader, delmål, kurser och handledarsamtal." },
     ],
   }),

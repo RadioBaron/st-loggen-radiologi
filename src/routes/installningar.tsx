@@ -30,7 +30,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/installningar")({
   head: () => ({
     meta: [
-      { title: "Inställningar – ST-loggen Radiologi" },
+      { title: "Inställningar – STigen Radiologi" },
       { name: "description", content: "Exportera, importera och säkerhetskopiera dina data till Google Drive." },
     ],
   }),

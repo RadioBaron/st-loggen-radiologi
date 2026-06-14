@@ -35,7 +35,7 @@ export type Course = {
 export const Route = createFileRoute("/kurser")({
   head: () => ({
     meta: [
-      { title: "Kurser – ST-loggen Radiologi" },
+      { title: "Kurser – STigen Radiologi" },
       { name: "description", content: "Logga genomförda kurser och poäng per delmål." },
     ],
   }),

@@ -81,15 +81,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "ST-loggen – Radiologi" },
+      { title: "STigen – Radiologi" },
       { name: "description", content: "Lokal anteckningsbok för ST-läkare inom Radiologi: delmål, långtidsschema och handledarsamtal." },
-      { name: "author", content: "ST-loggen" },
+      { name: "author", content: "STigen" },
       { name: "theme-color", content: "#1f5f6b" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "apple-mobile-web-app-title", content: "ST-loggen" },
+      { name: "apple-mobile-web-app-title", content: "STigen" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { property: "og:title", content: "ST-loggen – Radiologi" },
+      { property: "og:title", content: "STigen – Radiologi" },
       { property: "og:description", content: "Följ din ST-progression genom utbildningen." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -144,7 +144,7 @@ function RootComponent() {
                 <SidebarTrigger />
               </div>
               <span className="font-display text-sm font-medium text-muted-foreground">
-                ST-loggen · Radiologi
+                STigen · Radiologi
               </span>
             </header>
             <main className="flex-1 pb-20 md:pb-0">

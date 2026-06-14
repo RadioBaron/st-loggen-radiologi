@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/profil")({
   head: () => ({
     meta: [
-      { title: "Profil – ST-loggen Radiologi" },
+      { title: "Profil – STigen Radiologi" },
       { name: "description", content: "Dina uppgifter som används i översikten och specialistansökan." },
     ],
   }),

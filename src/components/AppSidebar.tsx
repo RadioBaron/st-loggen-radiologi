@@ -5,12 +5,12 @@ import {
   CalendarRange,
   MessagesSquare,
   Settings,
-  Stethoscope,
   GraduationCap,
   FileCheck2,
   User,
 } from "lucide-react";
 
+import { Logo } from "@/components/Logo";
 import {
   Sidebar,
   SidebarContent,
@@ -44,11 +44,9 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Stethoscope className="h-5 w-5" />
-          </div>
+          <Logo className="h-9 w-9 shrink-0" />
           <div className="flex flex-col leading-tight">
-            <span className="font-display text-base font-semibold">ST-loggen</span>
+            <span className="font-display text-base font-semibold">STigen</span>
             <span className="text-xs text-muted-foreground">Radiologi</span>
           </div>
         </div>

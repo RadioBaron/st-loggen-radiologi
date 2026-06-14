@@ -24,7 +24,7 @@ export type SupervisionSession = {
 export const Route = createFileRoute("/handledarsamtal")({
   head: () => ({
     meta: [
-      { title: "Handledarsamtal – ST-loggen Radiologi" },
+      { title: "Handledarsamtal – STigen Radiologi" },
       { name: "description", content: "Strukturerade handledarsamtal med sparbara anteckningar." },
     ],
   }),

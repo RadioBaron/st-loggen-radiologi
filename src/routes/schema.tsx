@@ -57,7 +57,7 @@ export function countsTowardService(e: ScheduleEntry) {
 export const Route = createFileRoute("/schema")({
   head: () => ({
     meta: [
-      { title: "Långtidsschema – ST-loggen Radiologi" },
+      { title: "Långtidsschema – STigen Radiologi" },
       { name: "description", content: "Planera och följ dina placeringar under ST." },
     ],
   }),

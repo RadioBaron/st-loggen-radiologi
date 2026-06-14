@@ -1,6 +1,6 @@
 {
-  "name": "ST-loggen Radiologi",
-  "short_name": "ST-loggen",
+  "name": "STigen Radiologi",
+  "short_name": "STigen",
   "description": "Följ din ST inom radiologi: delmål, tjänstgöring, kurser och specialistansökan.",
   "start_url": "/",
   "display": "standalone",
