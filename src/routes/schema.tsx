@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -68,6 +68,20 @@ function SchedulePage() {
 
   const departments = useMemo(() => departmentOptions(specialty?.departments), [specialty]);
   const [draft, setDraft] = useState<Draft>(() => emptyDraft(departments[0]));
+  // Har användaren själv valt placering? Tills dess följer defaulten
+  // specialitetens första placering (som ändras när localStorage hydrerat
+  // eller specialiteten byts – innan dess är specialty okänd).
+  const [deptTouched, setDeptTouched] = useState(false);
+
+  useEffect(() => {
+    if (deptTouched) return;
+    setDraft((d) => ({ ...d, department: departments[0] }));
+  }, [departments, deptTouched]);
+
+  const resetDraft = () => {
+    setDraft(emptyDraft(departments[0]));
+    setDeptTouched(false);
+  };
 
   const goalMonths = profile.goalMonths || specialty?.goalMonths || 60;
   const today = new Date().toISOString().slice(0, 10);
@@ -117,7 +131,7 @@ function SchedulePage() {
       },
     ]);
     toast.success("Placering tillagd");
-    setDraft(emptyDraft(departments[0]));
+    resetDraft();
   };
 
   const remove = (id: string) => {
@@ -175,7 +189,10 @@ function SchedulePage() {
               <Label htmlFor="dept">Placering</Label>
               <Select
                 value={draft.department}
-                onValueChange={(v) => setDraft((d) => ({ ...d, department: v }))}
+                onValueChange={(v) => {
+                  setDeptTouched(true);
+                  setDraft((d) => ({ ...d, department: v }));
+                }}
               >
                 <SelectTrigger id="dept" className="mt-1">
                   <SelectValue />

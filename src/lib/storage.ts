@@ -2,7 +2,7 @@
 // All data is persisted to localStorage and can be exported/imported as JSON
 // so the user can back it up to Google Drive, OneDrive, or anywhere else.
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const STORAGE_PREFIX = "st-radiologi:";
 export const APP_DATA_VERSION = 1;
@@ -34,26 +34,35 @@ export function writeStorage<T>(key: string, value: T) {
 export function useLocalState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(initial);
 
+  // Spegla alltid senaste värdet i en ref. Det gör att update() kan beräkna
+  // nästa värde utan att lägga sidoeffekter (writeStorage/notify) i Reacts
+  // state-updater – en sådan updater körs två gånger i StrictMode och skulle
+  // då skapa dubbletter (t.ex. två placeringar/kurser av ett klick).
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   // hydrate after mount to keep SSR happy
   useEffect(() => {
-    setValue(readStorage<T>(key, initial));
-    const listener = () => setValue(readStorage<T>(key, initial));
+    const sync = () => {
+      const next = readStorage<T>(key, initial);
+      valueRef.current = next;
+      setValue(next);
+    };
+    sync();
     if (!listeners.has(key)) listeners.set(key, new Set());
-    listeners.get(key)!.add(listener);
+    listeners.get(key)!.add(sync);
     return () => {
-      listeners.get(key)?.delete(listener);
+      listeners.get(key)?.delete(sync);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   const update = useCallback(
     (next: T | ((prev: T) => T)) => {
-      setValue((prev) => {
-        const resolved =
-          typeof next === "function" ? (next as (p: T) => T)(prev) : next;
-        writeStorage(key, resolved);
-        return resolved;
-      });
+      const resolved = typeof next === "function" ? (next as (p: T) => T)(valueRef.current) : next;
+      valueRef.current = resolved;
+      setValue(resolved);
+      writeStorage(key, resolved); // persisterar + notifierar andra prenumeranter
     },
     [key],
   );
@@ -80,10 +89,7 @@ export function getBackupJson(): string {
     version: APP_DATA_VERSION,
     exportedAt: new Date().toISOString(),
     data: Object.fromEntries(
-      Object.entries(STORAGE_KEYS).map(([k, storageKey]) => [
-        k,
-        readStorage(storageKey, null),
-      ]),
+      Object.entries(STORAGE_KEYS).map(([k, storageKey]) => [k, readStorage(storageKey, null)]),
     ),
   };
   return JSON.stringify(payload, null, 2);
