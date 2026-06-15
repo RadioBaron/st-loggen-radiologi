@@ -25,7 +25,15 @@ export function Logo({ className }: { className?: string }) {
       <circle cx="356" cy="272" r="8" fill="#2f8a99" />
       <circle cx="156" cy="152" r="21" fill="#ffffff" />
       <circle cx="156" cy="152" r="8" fill="#2f8a99" />
-      <line x1="252" y1="118" x2="252" y2="64" stroke="#ffffff" strokeWidth="14" strokeLinecap="round" />
+      <line
+        x1="252"
+        y1="118"
+        x2="252"
+        y2="64"
+        stroke="#ffffff"
+        strokeWidth="14"
+        strokeLinecap="round"
+      />
       <path d="M252 70 L300 84 L252 100 Z" fill="#7ad9c4" />
     </svg>
   );

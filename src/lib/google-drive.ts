@@ -12,6 +12,25 @@ const CFG_KEY = "st-radiologi:gdrive";
 
 type DriveConfig = { clientId: string; fileId?: string };
 
+// Minimal typning av den del av Google Identity Services-globalen vi använder.
+type TokenResponse = { access_token?: string; error?: string };
+type TokenClient = { requestAccessToken: (opts?: { prompt?: string }) => void };
+type GoogleOAuth = {
+  accounts: {
+    oauth2: {
+      initTokenClient: (cfg: {
+        client_id: string;
+        scope: string;
+        callback: (resp: TokenResponse) => void;
+      }) => TokenClient;
+    };
+  };
+};
+
+function googleGlobal(): GoogleOAuth | undefined {
+  return (globalThis as { google?: GoogleOAuth }).google;
+}
+
 export function readDriveConfig(): DriveConfig {
   if (typeof window === "undefined") return { clientId: "" };
   try {
@@ -29,7 +48,7 @@ export function writeDriveConfig(cfg: DriveConfig) {
 let gisPromise: Promise<void> | null = null;
 function loadGis(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if ((window as any).google?.accounts?.oauth2) return Promise.resolve();
+  if (googleGlobal()?.accounts?.oauth2) return Promise.resolve();
   if (gisPromise) return gisPromise;
   gisPromise = new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -45,12 +64,16 @@ function loadGis(): Promise<void> {
 // Begär en access-token (öppnar Google-popup vid behov).
 async function getAccessToken(clientId: string): Promise<string> {
   await loadGis();
-  const google = (window as any).google;
+  const google = googleGlobal();
   return new Promise((resolve, reject) => {
+    if (!google) {
+      reject(new Error("Google-scriptet är inte laddat."));
+      return;
+    }
     const client = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPE,
-      callback: (resp: any) => {
+      callback: (resp: TokenResponse) => {
         if (resp.error) reject(new Error(resp.error));
         else resolve(resp.access_token as string);
       },
@@ -109,10 +132,9 @@ export async function loadFromDrive(): Promise<string> {
   const token = await getAccessToken(cfg.clientId);
   const fileId = cfg.fileId || (await findExisting(token));
   if (!fileId) throw new Error("Hittade ingen backup i Drive.");
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error("Kunde inte hämta filen från Drive.");
   writeDriveConfig({ ...cfg, fileId });
   return res.text();

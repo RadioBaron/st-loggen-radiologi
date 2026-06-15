@@ -15,13 +15,7 @@ import {
 } from "lucide-react";
 
 import { Logo } from "@/components/Logo";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const primary: {
   title: string;
@@ -37,16 +31,25 @@ const primary: {
 
 const more = [
   { title: "Ansökan", url: "/ansokan", icon: FileCheck2, desc: "Förbered specialistansökan" },
-  { title: "Handledarsamtal", url: "/handledarsamtal", icon: MessagesSquare, desc: "Strukturerade samtal" },
+  {
+    title: "Handledarsamtal",
+    url: "/handledarsamtal",
+    icon: MessagesSquare,
+    desc: "Strukturerade samtal",
+  },
   { title: "Profil", url: "/profil", icon: User, desc: "Dina uppgifter" },
-  { title: "Inställningar & backup", url: "/installningar", icon: Settings, desc: "Exportera din data" },
+  {
+    title: "Inställningar & backup",
+    url: "/installningar",
+    icon: Settings,
+    desc: "Exportera din data",
+  },
 ] as const;
 
 export function MobileNav() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [open, setOpen] = useState(false);
-  const isActive = (url: string, exact?: boolean) =>
-    exact ? path === url : path.startsWith(url);
+  const isActive = (url: string, exact?: boolean) => (exact ? path === url : path.startsWith(url));
   const moreActive = more.some((m) => path.startsWith(m.url));
 
   return (
@@ -79,9 +82,7 @@ export function MobileNav() {
               <Menu
                 className={`h-5 w-5 ${moreActive ? "text-primary" : "text-muted-foreground"}`}
               />
-              <span className={moreActive ? "text-primary" : "text-muted-foreground"}>
-                Mer
-              </span>
+              <span className={moreActive ? "text-primary" : "text-muted-foreground"}>Mer</span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-2xl">
