@@ -17,6 +17,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { SpecialtyOnboarding } from "@/components/SpecialtyOnboarding";
 import { Toaster } from "@/components/ui/sonner";
 import { useActiveSpecialty } from "@/lib/specialty";
+import { runStartupMigration } from "@/lib/storage";
 
 function NotFoundComponent() {
   return (
@@ -130,8 +131,9 @@ function RootComponent() {
   const { needsOnboarding, setSpecialtyId, specialty } = useActiveSpecialty();
   const [mounted, setMounted] = useState(false);
 
-  // Registrera service worker för PWA/offline (endast i webbläsaren).
+  // Migrera lokal data till aktuell version + registrera service worker.
   useEffect(() => {
+    runStartupMigration();
     setMounted(true);
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});

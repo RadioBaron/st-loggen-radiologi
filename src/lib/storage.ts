@@ -4,8 +4,17 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 
+import { CURRENT_DATA_VERSION, applyMigrations, type DataBundle } from "@/lib/migrations";
+import { validateBackup } from "@/lib/data/validation";
+
 const STORAGE_PREFIX = "st-radiologi:";
-export const APP_DATA_VERSION = 1;
+// Versionen på datamodellen. Exporteras för bakåtkompatibilitet men hålls i
+// synk med migreringsramverkets CURRENT_DATA_VERSION (enda källan).
+export const APP_DATA_VERSION = CURRENT_DATA_VERSION;
+
+// Nyckel där den lokala datans schemaversion stämplas (utanför STORAGE_KEYS,
+// alltså inte en del av backupen – backupen bär sin egen version i envelopen).
+const VERSION_KEY = "__version__";
 
 type Listener = () => void;
 const listeners = new Map<string, Set<Listener>>();
@@ -82,11 +91,79 @@ export const STORAGE_KEYS = {
   application: "application",
 } as const;
 
+// ---- Versionsstämpel & migrering --------------------------------------
+
+/** Läser den lokala datans schemaversion, eller null om den aldrig stämplats. */
+export function getStoredVersion(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(STORAGE_PREFIX + VERSION_KEY);
+  if (raw === null) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export function setStoredVersion(version: number) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_PREFIX + VERSION_KEY, String(version));
+}
+
+/** Samlar all lagrad data till en bunt (lagringsnyckel -> värde). */
+function readBundle(): DataBundle {
+  const bundle: DataBundle = {};
+  for (const [k, storageKey] of Object.entries(STORAGE_KEYS)) {
+    bundle[k] = readStorage(storageKey, null);
+  }
+  return bundle;
+}
+
+/** Skriver tillbaka en (validerad/migrerad) bunt. Hoppar över tomma nycklar. */
+function writeBundle(bundle: DataBundle) {
+  for (const [k, storageKey] of Object.entries(STORAGE_KEYS)) {
+    const value = bundle[k];
+    if (value !== undefined && value !== null) {
+      writeStorage(storageKey, value);
+    }
+  }
+}
+
+/**
+ * Körs en gång vid uppstart. Stämplar versionen första gången, och migrerar
+ * äldre data framåt vid behov. Är en no-op när datan redan är aktuell.
+ */
+export function runStartupMigration() {
+  if (typeof window === "undefined") return;
+  const stored = getStoredVersion();
+
+  // Första gången versionsstämpeln införs: befintlig data har redan aktuell
+  // form (vi är på v1), så stämpla utan att migrera.
+  if (stored === null) {
+    setStoredVersion(CURRENT_DATA_VERSION);
+    return;
+  }
+
+  if (stored === CURRENT_DATA_VERSION) return;
+
+  if (stored > CURRENT_DATA_VERSION) {
+    // Datan är från en nyare app – migrera inte (kan inte nedgradera säkert).
+    console.warn(
+      `Lokala data är version ${stored} men appen är version ${CURRENT_DATA_VERSION}. Uppdatera appen.`,
+    );
+    return;
+  }
+
+  // stored < CURRENT: migrera framåt och skriv tillbaka.
+  const migrated = applyMigrations(readBundle(), stored);
+  writeBundle(migrated);
+  setStoredVersion(CURRENT_DATA_VERSION);
+}
+
+// ---- Backup-export / import -------------------------------------------
+
 // Bygg backup-payloaden som en JSON-sträng (används av fil-export och Drive).
 export function getBackupJson(): string {
   const payload = {
     app: "st-radiologi",
-    version: APP_DATA_VERSION,
+    version: CURRENT_DATA_VERSION,
     exportedAt: new Date().toISOString(),
     data: Object.fromEntries(
       Object.entries(STORAGE_KEYS).map(([k, storageKey]) => [k, readStorage(storageKey, null)]),
@@ -95,18 +172,30 @@ export function getBackupJson(): string {
   return JSON.stringify(payload, null, 2);
 }
 
-// Läs in en backup-payload från en JSON-sträng.
+/**
+ * Läser in en backup från en JSON-sträng. Atomisk och säker:
+ *   1. Tolka JSON.
+ *   2. Validera hela innehållet (zod) – kastar vid skräp/fel app.
+ *   3. Migrera om backupen är äldre; avvisa om den är nyare.
+ *   4. Skriv ALLT först efter att allt validerats (inget halvskrivet).
+ */
 export function importFromJson(text: string) {
-  const parsed = JSON.parse(text);
-  if (parsed.app !== "st-radiologi") {
-    throw new Error("Filen verkar inte komma från denna app.");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Filen är inte giltig JSON.");
   }
-  const data = parsed.data ?? {};
-  for (const [k, storageKey] of Object.entries(STORAGE_KEYS)) {
-    if (data[k] !== undefined && data[k] !== null) {
-      writeStorage(storageKey, data[k]);
-    }
-  }
+
+  // Validera (kastar med tydligt meddelande vid fel).
+  const { version, data } = validateBackup(parsed);
+
+  // Migrera vid behov (kastar om backupen är nyare än appen).
+  const migrated = applyMigrations(data as DataBundle, version);
+
+  // Allt är validerat och migrerat – skriv nu (atomiskt ur användarens vy).
+  writeBundle(migrated);
+  setStoredVersion(CURRENT_DATA_VERSION);
 }
 
 export function exportAllData() {
